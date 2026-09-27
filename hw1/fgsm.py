@@ -36,7 +36,7 @@ loss.backward()
 # your code here
 # adv_x should be computed from x according to the fgsm-style perturbation such that the new class of xBar is the target class t above
 # hint: you can compute the gradient of the loss w.r.t to x as x.grad
-adv_x = TODO
+adv_x = x - eps * x.grad.sign()
 
 new_class = N(adv_x).argmax(dim=1).item()
 print("New Class: ", new_class)
@@ -44,3 +44,38 @@ assert(new_class == t)
 # it is not enough that adv_x is classified as t. We also need to make sure it is 'close' to the original x. 
 print(torch.norm((x-adv_x),  p=float('inf')).data)
 assert( torch.norm((x-adv_x), p=float('inf')) <= epsReal)
+
+# Problem 1, part 2: repeat for target class 1.
+t = 1
+x.grad.zero_()
+loss = L(N(x), torch.tensor([t], dtype=torch.long))
+loss.backward()
+adv_x = x - eps * x.grad.sign()
+new_class = N(adv_x).argmax(dim=1).item()
+print("New Class", new_class)
+print(torch.norm((x-adv_x),  p=float('inf')).data)
+
+if new_class != t:
+    target1_eps = 0.56 - 1e-7
+    step_size = 0.01
+    torch.manual_seed(9)
+    adv_x = x.detach() + torch.empty_like(x).uniform_(-target1_eps, target1_eps)
+
+    for _ in range(200):
+        adv_x.requires_grad_()
+        loss = L(N(adv_x), torch.tensor([t], dtype=torch.long))
+        loss.backward()
+
+        with torch.no_grad():
+            adv_x = adv_x - step_size * adv_x.grad.sign()
+            adv_x = x.detach() + torch.clamp(adv_x - x.detach(), min=-target1_eps, max=target1_eps)
+
+        if N(adv_x).argmax(dim=1).item() == t:
+            break
+
+    new_class = N(adv_x).argmax(dim=1).item()
+    print("New Class", new_class)
+    print(torch.norm((x-adv_x),  p=float('inf')).data)
+
+assert(new_class == t)
+assert( torch.norm((x-adv_x), p=float('inf')) <= 0.56)
